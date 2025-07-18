@@ -1,45 +1,36 @@
+# main.py
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 import sqlite3
-import datetime
 import random
 
 app = FastAPI()
-DB = "quotes.db"
 
-def get_connection():
-    return sqlite3.connect(DB)
+# ✅ Root route for health check
+@app.get("/")
+def root():
+    return {"message": "Gym Quotes API is running!"}
 
-@app.get("/daily-quote")
-def get_daily_quote():
-    today = str(datetime.date.today())
-    conn = get_connection()
-    c = conn.cursor()
-
-    # Check if quote already given today
-    c.execute("SELECT quote FROM quotes WHERE date_used = ?", (today,))
-    row = c.fetchone()
-    if row:
+# ✅ /quote route to return a random quote
+@app.get("/quote")
+def get_random_quote():
+    try:
+        conn = sqlite3.connect("quotes.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT text, author FROM quotes ORDER BY RANDOM() LIMIT 1")
+        result = cursor.fetchone()
         conn.close()
-        return JSONResponse({"quote": row[0], "date": today})
 
-    # Get a random unused quote
-    c.execute("SELECT id, quote FROM quotes WHERE used = 0")
-    unused = c.fetchall()
+        if result:
+            return {"quote": result[0], "author": result[1]}
+        else:
+            return JSONResponse(status_code=404, content={"error": "No quotes found"})
 
-    # Reset all if no unused quotes left
-    if not unused:
-        c.execute("UPDATE quotes SET used = 0, date_used = NULL")
-        conn.commit()
-        c.execute("SELECT id, quote FROM quotes WHERE used = 0")
-        unused = c.fetchall()
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
-    selected = random.choice(unused)
-    quote_id, quote_text = selected
 
-    # Mark selected quote as used
-    c.execute("UPDATE quotes SET used = 1, date_used = ? WHERE id = ?", (today, quote_id))
-    conn.commit()
-    conn.close()
-
-    return JSONResponse({"quote": quote_text, "date": today})
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=10000)
