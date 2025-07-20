@@ -18,7 +18,7 @@ def get_random_quote():
     try:
         conn = sqlite3.connect("quotes.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT text, author FROM quotes ORDER BY RANDOM() LIMIT 1")
+        cursor.execute("SELECT text, author FROM quotes ORDER BY RANDOM() LIMIT 100")
         result = cursor.fetchone()
         conn.close()
 
